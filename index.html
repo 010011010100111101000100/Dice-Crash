@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dice Crash</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>Dice Crash</h1>
+  <p>Select your numbers:</p>
+  <div class="inputs">
+    <input id="num1" type="number" min="1" max="6" value="1">
+    <input id="num2" type="number" min="1" max="6" value="1">
+  </div>
+  <button id="rollBtn">ROLL</button>
+  <div id="result"></div>
+</div>
+
+<div id="winPopup" class="popup hidden">
+  <div class="popup-content">
+    <h2>You Win!</h2>
+    <p>Download your .ZELA reward</p>
+    <a id="downloadZela" href="reward.zela" download>Download .ZELA File</a>
+    <button onclick="closePopup()">Close</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

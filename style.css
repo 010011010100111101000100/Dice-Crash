@@ -1,0 +1,21 @@
+body {
+  background: #0a0a0a;
+  color: #0ff;
+  font-family: Arial;
+  text-align: center;
+}
+button {
+  padding: 10px 20px;
+  background: #0ff;
+  border: none;
+  cursor: pointer;
+}
+.popup {
+  position: fixed; top:0; left:0; right:0; bottom:0;
+  display:flex; justify-content:center; align-items:center;
+  background: rgba(0,0,0,0.7);
+}
+.hidden { display:none; }
+.popup-content {
+  background:#111; padding:20px; border:2px solid #0ff;
+}
