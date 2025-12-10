@@ -10,8 +10,8 @@
   <div class="app" role="application" aria-label="Dice Crash Neon">
     <header class="header">
       <div>
-        <div class="title">DICE CRASH — NEON</div>
-        <div class="subtitle">Pick two numbers and roll. Win if dice match in order. 3 rolls per day.</div>
+        <div class="title">DICE CRASH — ZELA</div>
+        <div class="subtitle">Pick two numbers and roll. 3 rolls per day.</div>
       </div>
       <div class="controls-top">
         <label class="sound-toggle">
@@ -29,7 +29,11 @@
           <div class="pointer" id="pointer" aria-hidden="true"></div>
           <div class="rgb-overlay" aria-hidden="true"></div>
         </div>
-        <div class="legend small">Pointer shows the winning alignment zone — dice must settle with faces facing upward as shown.</div>
+        <div class="legend small" id="howToPlay">
+          <strong>How to play:</strong>
+          <div>1) Choose two numbers (1–6). 2) Click <em>ROLL</em>. 3) If the first die equals the first pick and the second die equals the second pick you win.</div>
+          <div>Rolls reset each day. Your remaining rolls are saved automatically.</div>
+        </div>
       </section>
 
       <aside class="right">
@@ -41,25 +45,20 @@
             <button id="rollBtn" class="btn">ROLL</button>
           </div>
 
-          <div class="spins" id="spinsLeft">Rolls left today: —</div>
+          <div class="spins" id="spinsLeft">Rolls left today: 3</div>
           <div class="result" id="resultMsg" aria-live="polite"></div>
           <a id="downloadZela" class="download" style="display:none">Download .ZELA</a>
-          <div class="small">Physics-driven motion (2D sim), neon RGB cycling. Win when die1 === pick1 and die2 === pick2 (order matters).</div>
+          <div class="small">Wins generate a redeemable token that you can download.</div>
         </div>
 
         <div class="card">
           <div class="panel-title">Recent Token Registry</div>
           <div id="tokenList" style="font-family:monospace; font-size:13px; margin-top:8px; color: #bcd;"></div>
         </div>
-
-        <div class="card">
-          <div class="panel-title">Rules (hidden checks)</div>
-          <div class="small">Tokens generated on win follow hidden rules (prefix <code>ZELA-</code>, secret sequence inside, digit requirements).</div>
-        </div>
       </aside>
     </main>
 
-    <footer class="footer">© ZELA — For fun only</footer>
+    <footer class="footer"></footer>
   </div>
 
 <!-- confetti -->
