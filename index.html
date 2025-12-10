@@ -3,41 +3,48 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Dice Crash - Neon Physics</title>
+<title>Dice Crash — ZELA</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app" role="application" aria-label="Dice Crash Neon">
-    <div class="header">
+    <header class="header">
       <div>
         <div class="title">DICE CRASH — NEON</div>
         <div class="subtitle">Pick two numbers and roll. Win if dice match in order. 3 rolls per day.</div>
       </div>
-      <div class="subtitle">Made for fun • No real gambling</div>
-    </div>
-
-    <div class="main">
-      <div class="left">
-        <div class="play-area card" id="playArea">
-          <canvas id="scene"></canvas>
-          <div class="pointer" id="pointer"></div>
-        </div>
+      <div class="controls-top">
+        <label class="sound-toggle">
+          <input id="soundToggle" type="checkbox" />
+          <span>Sound</span>
+        </label>
+        <button id="resetBtn" class="mini-btn" title="Reset tokens & rolls">Reset</button>
       </div>
+    </header>
 
-      <div class="right">
+    <main class="main">
+      <section class="left">
+        <div class="play-area card" id="playArea">
+          <canvas id="scene" aria-label="Dice play area"></canvas>
+          <div class="pointer" id="pointer" aria-hidden="true"></div>
+          <div class="rgb-overlay" aria-hidden="true"></div>
+        </div>
+        <div class="legend small">Pointer shows the winning alignment zone — dice must settle with faces facing upward as shown.</div>
+      </section>
+
+      <aside class="right">
         <div class="card">
           <div class="panel-title">Choose numbers</div>
           <div class="inputs">
             <input id="pick1" class="num" type="number" min="1" max="6" value="6" aria-label="Pick first die"/>
-            <div style="width:8px"></div>
             <input id="pick2" class="num" type="number" min="1" max="6" value="4" aria-label="Pick second die"/>
             <button id="rollBtn" class="btn">ROLL</button>
           </div>
 
           <div class="spins" id="spinsLeft">Rolls left today: —</div>
-          <div class="result" id="resultMsg"></div>
+          <div class="result" id="resultMsg" aria-live="polite"></div>
           <a id="downloadZela" class="download" style="display:none">Download .ZELA</a>
-          <div class="small">Physics-based dice with gravity, collisions & spin. Winner if die1 === pick1 and die2 === pick2.</div>
+          <div class="small">Physics-driven motion (2D sim), neon RGB cycling. Win when die1 === pick1 and die2 === pick2 (order matters).</div>
         </div>
 
         <div class="card">
@@ -46,11 +53,13 @@
         </div>
 
         <div class="card">
-          <div class="panel-title">Settings</div>
-          <div class="small">Token rules: starts with <code>ZELA-</code>, 20 chars after prefix, includes <code>9F0</code>, at least 3 digits.</div>
+          <div class="panel-title">Rules (hidden checks)</div>
+          <div class="small">Tokens generated on win follow hidden rules (prefix <code>ZELA-</code>, secret sequence inside, digit requirements).</div>
         </div>
-      </div>
-    </div>
+      </aside>
+    </main>
+
+    <footer class="footer">© ZELA — For fun only</footer>
   </div>
 
 <!-- confetti -->
