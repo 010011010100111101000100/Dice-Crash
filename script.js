@@ -1,4 +1,4 @@
-/* script.js — improved 2D neon dice, RGB cycling, sounds, daily limits */
+/* script.js — fixed roll logic, persistent rolls-left, responsive UI */
 
 /* -------- CONFIG -------- */
 const DAILY_ROLLS = 3;
@@ -30,8 +30,8 @@ let tokens = [];
 let rolling = false;
 
 /* STORAGE KEYS */
-const STATE_KEY = 'dice_crash_state_v3';
-const TOKENS_KEY = 'dice_crash_tokens_v3';
+const STATE_KEY = 'dice_crash_state_v4';
+const TOKENS_KEY = 'dice_crash_tokens_v4';
 
 /* ---------- STORAGE ---------- */
 function loadState() {
@@ -53,9 +53,9 @@ function loadState() {
   } catch (e) {
     state = { date: new Date().toDateString(), rolls: DAILY_ROLLS };
   }
-  spinsLeftEl.textContent = `Rolls left today: ${state.rolls}`;
+  updateSpinsUI();
 }
-function saveState() { localStorage.setItem(STATE_KEY, JSON.stringify(state)); spinsLeftEl.textContent = `Rolls left today: ${state.rolls}`; }
+function saveState() { localStorage.setItem(STATE_KEY, JSON.stringify(state)); updateSpinsUI(); }
 
 function loadTokens() {
   try { tokens = JSON.parse(localStorage.getItem(TOKENS_KEY) || '[]'); } catch(e) { tokens = []; }
@@ -65,6 +65,12 @@ function saveTokens() { localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens))
 function renderTokenList() {
   if (!tokens.length) tokenListEl.textContent = '(none)';
   else tokenListEl.innerHTML = tokens.slice().reverse().map(t => `<div>${t.token} — ${t.prize} — ${new Date(t.issuedAt).toLocaleString()}</div>`).join('');
+}
+
+/* ---------- UI helpers ---------- */
+function updateSpinsUI() {
+  spinsLeftEl.textContent = `Rolls left today: ${state.rolls}`;
+  rollBtn.disabled = state.rolls <= 0 || rolling;
 }
 
 /* ---------- CANVAS & RESIZE ---------- */
@@ -96,29 +102,23 @@ class Die {
     this.av += ang;
   }
   update(dt) {
-    // gravity
     this.vy += 1600 * dt;
-    // integrate
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.angle += this.av * dt;
     const half = this.size / 2;
-    // floor
     if (this.y + half > height - 10) {
       this.y = height - 10 - half;
       if (this.vy > 0) this.vy = -this.vy * this.restitution;
       this.vx *= (1 - this.friction * 5);
       this.av *= (1 - this.friction * 2);
     }
-    // ceiling
     if (this.y - half < 10) {
       this.y = 10 + half;
       if (this.vy < 0) this.vy = -this.vy * this.restitution;
     }
-    // walls
     if (this.x - half < 10) { this.x = 10 + half; if (this.vx < 0) this.vx = -this.vx * this.restitution; this.av *= 0.98; }
     if (this.x + half > width - 10) { this.x = width - 10 - half; if (this.vx > 0) this.vx = -this.vx * this.restitution; this.av *= 0.98; }
-    // damping
     this.vx *= 1 - Math.min(0.02, dt * 0.8);
     this.vy *= 1 - Math.min(0.02, dt * 0.3);
     this.av *= 1 - Math.min(0.02, dt * 0.6);
@@ -128,18 +128,15 @@ class Die {
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
     const s = this.size; const r = s/2;
-    // subtle face
     const grad = ctx.createLinearGradient(-r, -r, r, r);
     grad.addColorStop(0, 'rgba(255,255,255,0.04)');
     grad.addColorStop(1, 'rgba(0,0,0,0.18)');
     ctx.fillStyle = grad;
     ctx.fillRect(-r, -r, s, s);
-    // dynamic RGB stroke
     const hue = (Date.now() * 0.03 + hueRotation) % 360;
     ctx.lineWidth = Math.max(1, s*0.045);
     ctx.strokeStyle = `hsl(${hue} 90% 60%)`;
     ctx.strokeRect(-r, -r, s, s);
-    // pips
     this.drawPips(ctx, this.getFaceForRender(), s);
     ctx.restore();
   }
@@ -162,13 +159,12 @@ class Die {
     }
   }
   getFaceForRender() {
-    // pseudo-random mapping based on angle+seed -> 1..6
     const v = Math.abs(Math.floor((this.angle * 1000) + this.seed)) % 6;
     return (v + 1);
   }
 }
 
-/* ---------- COLLISIONS ---------- */
+/* COLLISIONS */
 function collideDice(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
   const dist = Math.hypot(dx, dy);
@@ -191,7 +187,7 @@ function collideDice(a, b) {
   }
 }
 
-/* ---------- SCENE SETUP ---------- */
+/* SCENE SETUP */
 let die1, die2;
 function resetDicePositions() {
   const s = Math.min(width, height) * 0.14;
@@ -200,20 +196,19 @@ function resetDicePositions() {
   die1.angle = Math.random() * Math.PI * 2; die2.angle = Math.random() * Math.PI * 2;
 }
 
-/* ---------- ROLL LOGIC ---------- */
+/* ROLL LOGIC */
 let settleTimer = 0;
 function startRoll() {
   if (rolling) return;
   if (state.rolls <= 0) {
     resultMsg.textContent = 'No rolls left today — come back tomorrow!';
+    updateSpinsUI();
     return;
   }
-  // consume roll
   state.rolls = Math.max(0, state.rolls - 1);
   saveState();
-  spinsLeftEl.textContent = `Rolls left today: ${state.rolls}`;
+  updateSpinsUI();
 
-  // random impulses to emulate throw
   const power = 700;
   die1.applyImpulse((Math.random()*2 -1) * power, (Math.random()*-1.2 -0.6) * power, (Math.random()*12 - 6));
   die2.applyImpulse((Math.random()*2 -1) * power, (Math.random()*-1.2 -0.6) * power, (Math.random()*12 - 6));
@@ -225,10 +220,9 @@ function startRoll() {
   if (soundEnabled()) clickAudio();
 }
 
-/* ---------- SETTLE DETECTION ---------- */
+/* SETTLE DETECTION */
 function checkSettled(dt) {
-  const velThresh = 20;
-  const angThresh = 0.6;
+  const velThresh = 20; const angThresh = 0.6;
   const aSlowed = Math.hypot(die1.vx, die1.vy) < velThresh && Math.abs(die1.av) < angThresh;
   const bSlowed = Math.hypot(die2.vx, die2.vy) < velThresh && Math.abs(die2.av) < angThresh;
   if (aSlowed && bSlowed) {
@@ -238,23 +232,18 @@ function checkSettled(dt) {
   return false;
 }
 
-/* ---------- FINALIZE ---------- */
+/* FINALIZE */
 function finalizeRoll() {
   rolling = false;
-  const f1 = die1.getFaceForRender();
-  const f2 = die2.getFaceForRender();
-  const pick1 = parseInt(pick1El.value) || 0;
-  const pick2 = parseInt(pick2El.value) || 0;
+  const f1 = die1.getFaceForRender(); const f2 = die2.getFaceForRender();
+  const pick1 = parseInt(pick1El.value) || 0; const pick2 = parseInt(pick2El.value) || 0;
   if (f1 === pick1 && f2 === pick2) {
     resultMsg.textContent = `You rolled ${f1} & ${f2} — YOU WIN!`;
     if (soundEnabled()) winAudio();
     confetti({ particleCount: 200, spread: 140, origin: { y: 0.6 } });
-    const token = generateValidToken();
-    tokens.push({ token, prize: 'GRAND', issuedAt: Date.now() });
-    saveTokens();
-    createZelaDownload(token);
-    pointerEl.classList.add('pointer-wiggle');
-    pointerEl.classList.add('win-glow');
+    const token = generateValidToken(); tokens.push({ token, prize: 'GRAND', issuedAt: Date.now() });
+    saveTokens(); createZelaDownload(token);
+    pointerEl.classList.add('pointer-wiggle'); pointerEl.classList.add('win-glow');
     setTimeout(()=>pointerEl.classList.remove('pointer-wiggle'), 700);
   } else {
     resultMsg.textContent = `You rolled ${f1} & ${f2} — Try again.`;
@@ -262,19 +251,17 @@ function finalizeRoll() {
   }
 }
 
-/* ---------- TOKEN GENERATION ---------- */
+/* TOKEN generation (unchanged) */
 function generateValidToken() {
   let attempt = 0;
   while (attempt++ < 1200) {
     let body = '';
     for (let i=0;i<TOKEN_BODY_LEN;i++) body += TOKEN_CHARSET.charAt(Math.floor(Math.random()*TOKEN_CHARSET.length));
-    // force secret
     if (!body.includes(SECRET_SEQ)) {
       const pos = Math.floor(Math.random() * (TOKEN_BODY_LEN - SECRET_SEQ.length + 1));
       body = body.slice(0,pos) + SECRET_SEQ + body.slice(pos + SECRET_SEQ.length);
       if (body.length > TOKEN_BODY_LEN) body = body.slice(0, TOKEN_BODY_LEN);
     }
-    // ensure digits
     let digits = (body.match(/[0-9]/g) || []).length;
     let tries = 0;
     while (digits < TOKEN_MIN_DIGITS && tries++ < TOKEN_BODY_LEN) {
@@ -307,37 +294,16 @@ function createZelaDownload(token) {
   downloadZela.href = url; downloadZela.download = `${token}.zela`; downloadZela.style.display = 'inline-block';
 }
 
-/* ---------- AUDIO (optional) ---------- */
+/* AUDIO */
 let audioCtx = null;
-function ensureAudio() {
-  if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { audioCtx = null; }
-  }
-}
+function ensureAudio() { if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { audioCtx = null; } }
 function soundEnabled(){ return soundToggle && soundToggle.checked; }
-
-function clickAudio() {
-  ensureAudio(); if (!audioCtx) return;
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.type='square'; o.frequency.value = 880;
-  g.gain.value = 0;
-  o.connect(g); g.connect(audioCtx.destination);
-  const now = audioCtx.currentTime;
-  g.gain.setValueAtTime(0.0001, now);
-  g.gain.exponentialRampToValueAtTime(0.05, now+0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, now+0.08);
-  o.start(now); o.stop(now+0.12);
-}
-function rollWhoosh() { ensureAudio(); if(!audioCtx) return;
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type='sawtooth';
-  const now = audioCtx.currentTime; o.frequency.setValueAtTime(160, now); o.frequency.exponentialRampToValueAtTime(1200, now+1.0);
-  g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.06, now+0.05); g.gain.exponentialRampToValueAtTime(0.0001, now+1.0);
-  o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+1.05);
-}
+function clickAudio(){ ensureAudio(); if (!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='square'; o.frequency.value=880; g.gain.value=0; o.connect(g); g.connect(audioCtx.destination); const now=audioCtx.currentTime; g.gain.setValueAtTime(0.0001,now); g.gain.exponentialRampToValueAtTime(0.05, now+0.01); g.gain.exponentialRampToValueAtTime(0.0001, now+0.08); o.start(now); o.stop(now+0.12); }
+function rollWhoosh(){ ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sawtooth'; const now=audioCtx.currentTime; o.frequency.setValueAtTime(160, now); o.frequency.exponentialRampToValueAtTime(1200, now+1.0); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.06, now+0.05); g.gain.exponentialRampToValueAtTime(0.0001, now+1.0); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+1.05); }
 function winAudio(){ ensureAudio(); if(!audioCtx) return; const notes=[880,990,1320]; const now=audioCtx.currentTime; notes.forEach((n,i)=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(n, now+i*0.08); g.gain.setValueAtTime(0.0001, now+i*0.08); g.gain.exponentialRampToValueAtTime(0.12, now+i*0.08+0.01); g.gain.exponentialRampToValueAtTime(0.0001, now+i*0.08+0.32); o.connect(g); g.connect(audioCtx.destination); o.start(now+i*0.08); o.stop(now+i*0.08+0.32); }); }
 function failAudio(){ ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='square'; o.frequency.value=140; const now=audioCtx.currentTime; g.gain.setValueAtTime(0.0001,now); g.gain.exponentialRampToValueAtTime(0.05, now+0.01); g.gain.exponentialRampToValueAtTime(0.0001, now+0.12); o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.15); }
 
-/* ---------- ANIMATION LOOP ---------- */
+/* ANIMATION LOOP */
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
@@ -348,29 +314,23 @@ function loop(now) {
   collideDice(die1, die2);
 
   ctx.clearRect(0,0,width,height);
-  // ground strip
   ctx.fillStyle = 'rgba(255,255,255,0.02)';
   ctx.fillRect(0, height-10, width, 10);
 
-  // dynamic hue rotation offset to feed into die draws
   const hueRotation = (Date.now() * 0.03) % 360;
   die1.draw(ctx, hueRotation);
   die2.draw(ctx, hueRotation + 80);
 
   if (rolling) {
-    if (checkSettled(dt)) {
-      finalizeRoll();
-    } else {
-      if (Math.random() < 0.003 && soundEnabled()) rollWhoosh();
-    }
+    if (checkSettled(dt)) finalizeRoll();
+    else if (Math.random() < 0.003 && soundEnabled()) rollWhoosh();
   }
 
   requestAnimationFrame(loop);
 }
 
-/* ---------- UI wiring ---------- */
+/* UI wiring */
 rollBtn.addEventListener('click', async () => {
-  // must be a user gesture to enable audio
   ensureAudio();
   if (audioCtx && audioCtx.state === 'suspended') try { await audioCtx.resume(); } catch(e){}
   startRoll();
@@ -385,11 +345,9 @@ resetBtn.addEventListener('click', ()=>{
   resultMsg.textContent = 'Reset complete.';
 });
 
-soundToggle.addEventListener('change', ()=> {
-  // no persistence for simplicity — toggle audio on/off
-});
+soundToggle.addEventListener('change', ()=> { /* no op: state read when playing */ });
 
-/* ---------- START ---------- */
+/* STARTUP */
 function init() {
   resizeCanvas();
   resetDicePositions();
